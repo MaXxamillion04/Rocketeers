@@ -1,11 +1,15 @@
 import pygame
 import platform
+import enemiesClass
+from random import seed
 
 # init pygame
 pygame.init()
 
+screenX = 800
+screenY = 600
 #create the screen
-screen = pygame.display.set_mode((800,600))
+screen = pygame.display.set_mode((screenX,screenY))
 
 #set icon
 icon = pygame.image.load('rkt.png')
@@ -17,7 +21,9 @@ pygame.display.set_caption("Rocketeers")
 
 
 #Player info
-playerImg = pygame.image.load('player.png')
+playerImgRight = pygame.image.load('player.png')
+playerImgLeft = pygame.transform.flip(playerImgRight,True,False)
+playerFacing= 0# 0 = right, 1 = left
 playerWidth = 64
 playerHeight = 60
 playerX = 0
@@ -28,9 +34,23 @@ playerInAir = True
 toggleJetpackTimer = 0
 jetpackOn = False
 
+#game system info
+gameTimer = 0
+level = 1
+seed(1)#set random seed
+
+#enemyInfoi
+enemyMoveX=.5
+enemyMoveY=.075
+
+#debug info
+font = pygame.font.SysFont(None,24)
+
+
 #player graphics logic
 def drawPlayer(x,y):
-    screen.blit(playerImg,(x,y))
+    
+    screen.blit(playerImgRight,(x,y)) if playerFacing == 1 else screen.blit(playerImgLeft,(x,y))
 
 platformImg = pygame.image.load('platform.png')
 platforms = []
@@ -50,8 +70,27 @@ def drawPlatforms():
             screen.blit(platformImg,(platX,plat.Y))
             platX += 20
 
+enemies = []
+def generateEnemy():
+    enemies.append(enemiesClass.Enemy(level,screenX,screenY))
 
-#TODO: logic for player falling and being on ground or platform
+
+def drawEnemies():
+    for e in enemies:
+        screen.blit(e.image,(e.X,e.Y))
+
+def enemyCollidePlatform(enemy:enemiesClass.Enemy,plat:platform.Platform) -> bool:
+    #only check collision with top of platforms
+    if enemy.X < plat.X+plat.width and enemy.X+enemy.width > plat.X: #enemy above platform
+        if enemy.Y+enemy.height > plat.Y and enemy.Y < plat.Y:
+            return True
+    return False
+
+    
+    
+
+
+#logic for player falling and being on ground or platform
 def playerOnGround():
     global playerDY
     playerBottom = playerY + playerHeight
@@ -61,7 +100,7 @@ def playerOnGround():
               if playerBottom + playerDY >= plat.Y and playerY < plat.Y:
                   playerDY = 0
 
-#TODO: logic for player being in air jetpack on and colliding with platform
+#logic for player being in air jetpack on and colliding with platform
 def playerBumpsHead():
     global playerDY
     playerRight = playerX + playerWidth
@@ -71,13 +110,14 @@ def playerBumpsHead():
             if playerY > plat.Y  and playerY + playerDY < plat.Y + plat.height: #player is below platform about to intersect
                 playerDY = 0 
 
+#TODO: game is counting collision when player is on left side of platform, even far from it
+#possibly needs some kind of distance check
 def playerHitsWallGoingLeft():
     global playerDX
     playerBottom = playerY + playerHeight
     for plat in platforms:
         if playerIsNextTo(plat): 
-            print("left: {playerX} + {playerDX} < {plat.X} + {plat.width} ")
-            if playerX + playerDX < plat.X + plat.width:
+            if playerX + playerDX < plat.X + plat.width and playerX > plat.X:
                 playerDX = 0
 
 def playerHitsWallGoingRight():
@@ -86,7 +126,7 @@ def playerHitsWallGoingRight():
     playerBottom = playerY + playerHeight
     for plat in platforms:
         if playerIsNextTo(plat): #check if player is next to platform
-            if playerRight + playerDX > plat.X:
+            if playerRight + playerDX > plat.X and playerRight < plat.X + plat.width:
                 playerDX = 0
 
 def playerIsNextTo(plat: platform.Platform):
@@ -99,15 +139,20 @@ def playerIsAboveBelow(plat: platform.Platform):
 
 
 
-
+def drawDebugText():
+    img = font.render(f"{gameTimer}",True,pygame.Color(0,0,255))
+    screen.blit(img,(20,20))
+#timer debug display
 
 
 
 generatePlatforms()
-
 #Game Loop
 running = True
 while running:
+    gameTimer+=1
+
+
     #event section
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -117,9 +162,12 @@ while running:
     playerDY = 0
     keys = pygame.key.get_pressed()
     if keys[pygame.K_a]: #set left momentum
+        playerFacing = 0
         playerDX = -1
     if keys[pygame.K_d]: # set right momentum
         playerDX = 1
+        playerFacing = 1
+
     if toggleJetpackTimer == 0:
         if keys[pygame.K_w]: # toggle jetpack
             jetpackOn = not jetpackOn
@@ -137,16 +185,51 @@ while running:
     playerHitsWallGoingRight() if playerDX>0 else playerHitsWallGoingLeft()
 
 
+    #enemy section
+    
+    cleanUpDead = []
+    for enemy in enemies:
+        if enemy.dead==True:
+            enemy.animateDeath()
+            if enemy.remove:
+                cleanUpDead.append(enemy)
 
-    #TODO: update playerX, playerY
+        else:
+
+            enemy.X+=enemy.direction*enemyMoveX
+            if enemy.X > screenX:
+                enemy.X = -50
+            if enemy.X < -50:
+                enemy.X = screenX
+            enemy.Y+=enemyMoveY
+            for plat in platforms:
+                if enemyCollidePlatform(enemy,plat):
+                    enemy.dead=True
+
+    if gameTimer %200 == 0:
+        #generate and clean up enemies
+        for enemy in cleanUpDead:
+            enemies.remove(enemy)
+        if len(enemies) < 7 + level:
+            generateEnemy()
+        #TODO: player collision / death & animation
+        #TODO: platform collision and death of enemy
+        #TODO: bullet collision and death of enemy plus score
+
+
+
+
+
+
+    #TODO: update playerX, playerY to be modified by accelerators rather than velocity modifiers
     playerX += playerDX
     playerY += playerDY
 
     if playerX < -30:
-        playerX = 800
-    if playerX > 800:
+        playerX = screenX
+    if playerX > screenX:
         playerX = -30
-    if playerY < 0:
+    if playerY < 0: # fall off bottom?
         playerY = 0
 
     
@@ -159,6 +242,9 @@ while running:
 
     drawPlatforms()
 
+    drawDebugText()
+
+    drawEnemies()
 
 
     pygame.display.update()
