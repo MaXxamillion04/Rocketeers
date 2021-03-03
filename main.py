@@ -19,6 +19,13 @@ pygame.display.set_icon(icon)
 #set Title
 pygame.display.set_caption("Rocketeers")
 
+#text and color info
+font = pygame.font.SysFont("Uroob",24)
+gameOverFont = pygame.font.SysFont("Uroob",64,True)
+RED = pygame.Color(255,0,0)
+GREEN = pygame.Color(0,255,0)
+BLUE = pygame.Color(0,0,255)
+
 #Player info
 playerImgRight = pygame.image.load('newplayer.png')
 playerImgLeft = pygame.transform.flip(playerImgRight,True,False)
@@ -32,12 +39,21 @@ playerDY = 0
 playerInAir = True
 toggleJetpackTimer = 0
 jetpackOn = False
-bulletColor = pygame.Color(255,0,0)
+bulletColor = RED
 blasterTimer=0
 playerHealth = 3
 #TODO:multiple lives?
 playerLives = 3
 gameOver = False
+gameOverTimer=0
+playerImgDead1Right = pygame.image.load('newplayerDead1.png')
+playerImgDead1Left = pygame.transform.flip(playerImgDead1Right,True,False)
+playerImgDead2Right = pygame.image.load('newplayerDead2.png')
+playerImgDead2Left = pygame.transform.flip(playerImgDead2Right,True,False)
+playerImgDead3Right = pygame.image.load('newplayerDead3.png')
+playerImgDead3Left = pygame.transform.flip(playerImgDead3Right,True,False)
+playerImgDead4Right = pygame.image.load('newplayerDead4.png')
+playerImgDead4Left = pygame.transform.flip(playerImgDead4Right,True,False)
 
 #game system info
 gameTimer = 0
@@ -45,16 +61,51 @@ gameScore = 0
 level = 1
 seed(1)#set random seed
 
-#debug info
-font = pygame.font.SysFont(None,24)
+
 
 
 #player graphics logic
 def drawPlayer(x,y):
     screen.blit(playerImgRight,(x,y)) if playerFacing == 1 else screen.blit(playerImgLeft,(x,y))
 
+def drawGameOver(x,y):
+    global gameTimer
+    global gameOverTimer
+    global playerX
+    diff = gameTimer - gameOverTimer
+    if diff<60:
+        #draw dead1
+        screen.blit(playerImgDead1Right,(x,y)) if playerFacing == 1 else screen.blit(playerImgDead1Left,(x,y))
+    elif diff <120:
+        #draw dead2
+        screen.blit(playerImgDead2Right,(x,y)) if playerFacing == 1 else screen.blit(playerImgDead2Left,(x,y))
+    elif diff< 180:
+        #draw dead3
+        screen.blit(playerImgDead3Right,(x,y)) if playerFacing == 1 else screen.blit(playerImgDead3Left,(x,y))
+    elif diff < 240:
+        #draw dead4
+        screen.blit(playerImgDead4Right,(x,y)) if playerFacing == 1 else screen.blit(playerImgDead4Left,(x,y))
+    else:
+        img = gameOverFont.render("GAME OVER",True,RED)
+        playerX = -300
+        screen.blit(img,(screenX*.35,screenY*.2))
+        scoreImg = font.render("Final Score:",True,BLUE)
+        screen.blit(scoreImg,(screenX*.4,screenY*.3))
+        scoreVal = font.render(f"{gameScore}",True,GREEN)
+        screen.blit(scoreVal,(screenX*.4,screenY*.3+30))
+        resetImg = font.render("Press 'r' to play again",True,RED)
+        screen.blit(resetImg,(screenX*.4,screenY*.75))
+        #draw game over text
+        #GAME OVER
+        #Final Score:
+        #TODO: hi-score board
+        #press r to restart
+        #TODO: resetGame()
+
 #TODO: draw player health bar
 def drawPlayerHealth():
+    img = font.render("Shields:",True,pygame.Color(0,0,255))
+    screen.blit(img,(230,10))
     color=(255,0,0)
     if playerHealth == 3:
         color = (0,255,0)
@@ -62,10 +113,38 @@ def drawPlayerHealth():
         color = (255,255,0)
     elif playerHealth == 1:
         color = (255,0,0)
-    for i in range(playerHealth):
-        pygame.draw.rect(screen,color,(300+(i*50),10,30,10),True)
-    
-    
+    if playerHealth > 0:
+        for i in range(3):
+            if i < playerHealth:
+                pygame.draw.rect(screen,color,(300+(i*50),10,30,10),True)
+            else:
+                pygame.draw.rect(screen,(127,127,127),(300+(i*50),10,30,10),False)
+    else:
+        if gameTimer%160 > 100 and gameOver == False:
+            img = font.render("Critical",True,pygame.Color(225,0,30))
+            screen.blit(img,(300,10))
+
+def drawJetpackIndicator():
+    img = font.render("Jetpack:",True,pygame.Color(255,255,255))
+    screen.blit(img,(screenX*.6,10))
+    if jetpackOn:
+        img = font.render("On",True,pygame.Color(0,225,0))
+    else:
+        img = font.render("Off", True, pygame.Color(225,10,0))
+    screen.blit(img,(screenX*.6+70,10))
+
+def playerHurt():
+    global playerHealth
+    global gameOver
+    global gameOverTimer
+    global gameTimer
+    if playerHealth > 0:
+        playerHealth -= 1
+    else:
+        gameOver = True
+        gameOverTimer = gameTimer
+        print("set gameover")
+
 
 
 platformImg = pygame.image.load('platform.png')
@@ -177,13 +256,6 @@ def playerIsAboveBelow(plat: platform.Platform):
     return playerX < plat.X+plat.width and playerRight > plat.X
 #    return ( plat.X + plat.width > playerX > plat.X ) or ( plat.X < playerRight < plat.X + plat.width )
 
-def playerHurt():
-    global playerHealth
-    global gameOver
-    if playerHealth > 0:
-        playerHealth -= 1
-    else:
-        gameOver = True
 
 def increaseScore(amount: int):
     global gameScore
@@ -196,8 +268,17 @@ def drawDebugText():
 #timer debug display
 
 def drawScoreText():
-    img = font.render(f"{gameScore}",True,pygame.Color(255,0,67))
-    screen.blit(img,(screenX - screenX/10,10))
+    img = font.render(f"Score: {gameScore}",True,pygame.Color(255,0,67))
+    screen.blit(img,(screenX - screenX/6,10))
+
+#TODO:title screen and game-start
+#TODO: restart game
+def restartGame():
+    level = 1
+    gameScore = 0
+    gameTimer = 0
+    gameOver = False
+    gameOverTimer=0
 
 
 
@@ -205,7 +286,7 @@ generatePlatforms()
 #Game Loop
 running = True
 while running:
-    gameTimer+=1
+
 
 
     #event section
@@ -213,43 +294,45 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    gameTimer+=1
+    if not gameOver:
+        #TODO: move this within subroutine for player input
+        #INPUT: key/movement/shooting section
+        playerDX = 0
+        playerDY = 0
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_a]: #set left momentum
+            playerFacing = 0
+            playerDX = -1
+        if keys[pygame.K_d]: # set right momentum
+            playerDX = 1
+            playerFacing = 1
 
-    #INPUT: key/movement/shooting section
-    playerDX = 0
-    playerDY = 0
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_a]: #set left momentum
-        playerFacing = 0
-        playerDX = -1
-    if keys[pygame.K_d]: # set right momentum
-        playerDX = 1
-        playerFacing = 1
+        if toggleJetpackTimer == 0:
+            if keys[pygame.K_w]: # toggle jetpack
+                jetpackOn = not jetpackOn
+                toggleJetpackTimer = 120
+        else:
+            toggleJetpackTimer -= 1
+        
+        if blasterTimer == 0:
+            if keys[pygame.K_RCTRL]:
+                if playerFacing == 0:
+                    bullets.append(blasterBullet.blasterBullet(playerX,playerY+25,-1))
+                else:
+                    bullets.append(blasterBullet.blasterBullet(playerX+playerWidth,playerY+25,1))
+                blasterTimer=90
+        else:
+            blasterTimer-=1
 
-    if toggleJetpackTimer == 0:
-        if keys[pygame.K_w]: # toggle jetpack
-            jetpackOn = not jetpackOn
-            toggleJetpackTimer = 120
-    else:
-        toggleJetpackTimer -= 1
-    
-    if blasterTimer == 0:
-        if keys[pygame.K_RCTRL]:
-            if playerFacing == 0:
-                bullets.append(blasterBullet.blasterBullet(playerX,playerY+25,-1))
-            else:
-                bullets.append(blasterBullet.blasterBullet(playerX+playerWidth,playerY+25,1))
-            blasterTimer=90
-    else:
-        blasterTimer-=1
-
-    if jetpackOn:
-        playerDY = -0.5
-        playerBumpsHead()# checks vertical collisions
-    else:
-        playerDY = 0.5
-        playerOnGround()# checks collision with ground
-    
-    playerHitsWallGoingRight() if playerDX>0 else playerHitsWallGoingLeft()
+        if jetpackOn:
+            playerDY = -0.5
+            playerBumpsHead()# checks vertical collisions
+        else:
+            playerDY = 0.5
+            playerOnGround()# checks collision with ground
+        
+        playerHitsWallGoingRight() if playerDX>0 else playerHitsWallGoingLeft()
 
 
     deadBullets = []
@@ -320,18 +403,21 @@ while running:
 
     #cleanup bullet section
     for bul in deadBullets:
-        bullets.remove(bul)
+        if bul in bullets:
+            bullets.remove(bul)
 
     #TODO: update playerX, playerY to be modified by accelerators rather than velocity modifiers
-    playerX += playerDX
-    playerY += playerDY
+    if not gameOver:
+        #TODO: move this within subroutine movePlayer()
+        playerX += playerDX
+        playerY += playerDY
 
-    if playerX < -30:
-        playerX = screenX
-    if playerX > screenX:
-        playerX = -30
-    if playerY < 30: # hits "roof"
-        playerY = 30
+        if playerX < -30:
+            playerX = screenX
+        if playerX > screenX:
+            playerX = -30
+        if playerY < 30: # hits "roof"
+            playerY = 30
 
     
     #graphics section
@@ -341,7 +427,10 @@ while running:
 
 
     #draw actors
-    drawPlayer(playerX,playerY)
+    if not gameOver:
+        drawPlayer(playerX,playerY)
+    else:
+        drawGameOver(playerX,playerY)
 
     drawBlasterBullets()
 
@@ -352,6 +441,8 @@ while running:
     drawScoreText()
 
     drawPlayerHealth()
+
+    drawJetpackIndicator()
     
     drawPlatforms()
 
