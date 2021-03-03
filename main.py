@@ -1,6 +1,7 @@
 import pygame
 import platform
 import enemiesClass
+import blasterBullet
 from random import seed
 
 # init pygame
@@ -18,30 +19,31 @@ pygame.display.set_icon(icon)
 #set Title
 pygame.display.set_caption("Rocketeers")
 
-
-
 #Player info
-playerImgRight = pygame.image.load('player.png')
+playerImgRight = pygame.image.load('newplayer.png')
 playerImgLeft = pygame.transform.flip(playerImgRight,True,False)
 playerFacing= 0# 0 = right, 1 = left
 playerWidth = 64
 playerHeight = 60
-playerX = 0
-playerY = 0
+playerX = screenX*.3
+playerY = 20
 playerDX = 0
 playerDY = 0
 playerInAir = True
 toggleJetpackTimer = 0
 jetpackOn = False
+bulletColor = pygame.Color(255,0,0)
+blasterTimer=0
+playerHealth = 3
+#TODO:multiple lives?
+playerLives = 3
+gameOver = False
 
 #game system info
 gameTimer = 0
+gameScore = 0
 level = 1
 seed(1)#set random seed
-
-#enemyInfoi
-enemyMoveX=.5
-enemyMoveY=.075
 
 #debug info
 font = pygame.font.SysFont(None,24)
@@ -49,14 +51,28 @@ font = pygame.font.SysFont(None,24)
 
 #player graphics logic
 def drawPlayer(x,y):
-    
     screen.blit(playerImgRight,(x,y)) if playerFacing == 1 else screen.blit(playerImgLeft,(x,y))
+
+#TODO: draw player health bar
+def drawPlayerHealth():
+    color=(255,0,0)
+    if playerHealth == 3:
+        color = (0,255,0)
+    elif playerHealth == 2:
+        color = (255,255,0)
+    elif playerHealth == 1:
+        color = (255,0,0)
+    for i in range(playerHealth):
+        pygame.draw.rect(screen,color,(300+(i*50),10,30,10),True)
+    
+    
+
 
 platformImg = pygame.image.load('platform.png')
 platforms = []
 def generatePlatforms():
     platforms.clear()
-    platforms.append(platform.Platform(0,570,800))
+    platforms.append(platform.Platform(-40,screenY-30,screenX + 80))
     platforms.append(platform.Platform(160,300,160))
     platforms.append(platform.Platform(560,200,160))
 
@@ -86,9 +102,33 @@ def enemyCollidePlatform(enemy:enemiesClass.Enemy,plat:platform.Platform) -> boo
             return True
     return False
 
-    
-    
+#TODO: logic to check collision with player hitbox
+def enemyCollidePlayer(enemy:enemiesClass.Enemy) -> bool:
+    #just going to check all four corners for collision
+    playerRight = playerX+playerWidth
+    playerBottom = playerY + playerHeight
+    if (
+            (playerX<enemy.X<playerRight and playerY<enemy.Y<playerBottom) or \
+            (playerX<enemy.X+enemy.width<playerRight and playerY<enemy.Y<playerBottom) or \
+            (playerX<enemy.X+enemy.width<playerRight) and playerY<enemy.Y+enemy.height<playerBottom) or \
+            (playerX<enemy.X<playerRight and playerY<enemy.Y+enemy.height<playerBottom
+        ):
+        return True
+    else:
+        return False
 
+def enemyCollideBullet(enemy:enemiesClass.Enemy, bullet:blasterBullet.blasterBullet) -> bool:
+    return enemy.X < bullet.x < enemy.X+enemy.width and enemy.Y < bullet.y < enemy.Y+enemy.height
+
+    
+bullets = []
+def drawBlasterBullets():
+    secondColor = bulletColor + pygame.Color(0,122,88,0)
+    thirdColor = secondColor + pygame.Color(155,0,155,0)
+    for bul in bullets:
+        pygame.draw.line(screen,thirdColor,(bul.x,bul.y),(bul.x+bul.tail_dir,bul.y))
+        pygame.draw.line(screen,secondColor,(bul.x+(bul.tail_dir*1.2),bul.y),(bul.x+(bul.tail_dir*2.5),bul.y))
+        pygame.draw.line(screen,bulletColor,(bul.x+(bul.tail_dir*2.7),bul.y),(bul.x+(bul.tail_dir*3.8),bul.y))
 
 #logic for player falling and being on ground or platform
 def playerOnGround():
@@ -137,12 +177,27 @@ def playerIsAboveBelow(plat: platform.Platform):
     return playerX < plat.X+plat.width and playerRight > plat.X
 #    return ( plat.X + plat.width > playerX > plat.X ) or ( plat.X < playerRight < plat.X + plat.width )
 
+def playerHurt():
+    global playerHealth
+    global gameOver
+    if playerHealth > 0:
+        playerHealth -= 1
+    else:
+        gameOver = True
+
+def increaseScore(amount: int):
+    global gameScore
+    gameScore += amount
 
 
 def drawDebugText():
     img = font.render(f"{gameTimer}",True,pygame.Color(0,0,255))
-    screen.blit(img,(20,20))
+    screen.blit(img,(20,10))
 #timer debug display
+
+def drawScoreText():
+    img = font.render(f"{gameScore}",True,pygame.Color(255,0,67))
+    screen.blit(img,(screenX - screenX/10,10))
 
 
 
@@ -157,7 +212,9 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    
+
+
+    #INPUT: key/movement/shooting section
     playerDX = 0
     playerDY = 0
     keys = pygame.key.get_pressed()
@@ -174,15 +231,44 @@ while running:
             toggleJetpackTimer = 120
     else:
         toggleJetpackTimer -= 1
-        
+    
+    if blasterTimer == 0:
+        if keys[pygame.K_RCTRL]:
+            if playerFacing == 0:
+                bullets.append(blasterBullet.blasterBullet(playerX,playerY+25,-1))
+            else:
+                bullets.append(blasterBullet.blasterBullet(playerX+playerWidth,playerY+25,1))
+            blasterTimer=90
+    else:
+        blasterTimer-=1
+
     if jetpackOn:
         playerDY = -0.5
-        playerBumpsHead()# checks vertical collision
+        playerBumpsHead()# checks vertical collisions
     else:
         playerDY = 0.5
         playerOnGround()# checks collision with ground
     
     playerHitsWallGoingRight() if playerDX>0 else playerHitsWallGoingLeft()
+
+
+    deadBullets = []
+    #move bullet section
+    for bul in bullets:
+        bul.x += bul.dir*1.8
+        if bul.x > screenX:
+            bul.x = -10
+        if bul.x <-10:
+            bul.x = screenX+10
+        bul.traveled +=1.8
+        if bul.traveled > screenX*.75:
+            deadBullets.append(bul)
+        else:
+            for plat in platforms:
+                if plat.X < bul.x < plat.X+plat.width and plat.Y < bul.y < plat.Y+plat.height:
+                    deadBullets.append(bul)
+        #bullet collision with platforms
+        #final way bullets die is below, colliding with enemies
 
 
     #enemy section
@@ -195,16 +281,26 @@ while running:
                 cleanUpDead.append(enemy)
 
         else:
-
-            enemy.X+=enemy.direction*enemyMoveX
+            #TODO: move this movement logic within enemy so it can be different based on level
+            enemy.move()
             if enemy.X > screenX:
                 enemy.X = -50
             if enemy.X < -50:
                 enemy.X = screenX
-            enemy.Y+=enemyMoveY
             for plat in platforms:
                 if enemyCollidePlatform(enemy,plat):
                     enemy.dead=True
+            for bul in bullets:
+                if enemyCollideBullet(enemy,bul):
+                    increaseScore(level * 100)
+                    enemy.dead=True
+                    deadBullets.append(bul)
+            #TODO: bullet collision and death of enemy plus score
+            if enemyCollidePlayer(enemy):
+                playerHurt()
+                enemy.dead=True
+            #TODO:collide with player, begin player death sequence
+
 
     if gameTimer %200 == 0:
         #generate and clean up enemies
@@ -212,14 +308,19 @@ while running:
             enemies.remove(enemy)
         if len(enemies) < 7 + level:
             generateEnemy()
-        #TODO: player collision / death & animation
-        #TODO: platform collision and death of enemy
-        #TODO: bullet collision and death of enemy plus score
+
+    #TODO: player death & animation
+
+    
 
 
 
 
 
+
+    #cleanup bullet section
+    for bul in deadBullets:
+        bullets.remove(bul)
 
     #TODO: update playerX, playerY to be modified by accelerators rather than velocity modifiers
     playerX += playerDX
@@ -229,8 +330,8 @@ while running:
         playerX = screenX
     if playerX > screenX:
         playerX = -30
-    if playerY < 0: # fall off bottom?
-        playerY = 0
+    if playerY < 30: # hits "roof"
+        playerY = 30
 
     
     #graphics section
@@ -238,13 +339,21 @@ while running:
     # background color
     screen.fill((0,0,0))
 
+
+    #draw actors
     drawPlayer(playerX,playerY)
 
-    drawPlatforms()
-
-    drawDebugText()
+    drawBlasterBullets()
 
     drawEnemies()
+    #draw text and UI
+    drawDebugText()
+
+    drawScoreText()
+
+    drawPlayerHealth()
+    
+    drawPlatforms()
 
 
     pygame.display.update()

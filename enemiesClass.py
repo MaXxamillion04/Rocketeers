@@ -11,6 +11,7 @@ class Enemy:
         self.dead=False
         self.deadTimer=0
         self.remove =False
+        self.level=level
         if level == 1:
             self.spawnLevelOne(screenX,screenY)
 
@@ -24,7 +25,10 @@ class Enemy:
             self.direction = 1
             self.X = -20
 
-        self.Y = randint(0,screenY/2)
+        self.moveX = randint(0,4)/10 + .4
+        self.moveY = .07 + randint(0,10)/100
+
+        self.Y = 20+randint(0,screenY/2)
         self.width=60
         self.height=30
         self.image = pygame.image.load('levelOneEnemy.png')
@@ -52,6 +56,11 @@ class Enemy:
             if self.direction > 0:
                 self.image = pygame.transform.flip(self.image,True,False)
         
+    def move(self):
+        if self.level == 1:
+            self.X += self.direction * self.moveX
+            self.Y += self.moveY
+
 
 
 
