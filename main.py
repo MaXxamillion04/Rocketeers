@@ -1,8 +1,29 @@
+
 import pygame
 import platform
 import enemiesClass
 import blasterBullet
 from random import seed
+
+#TODO LIST:
+#
+#1. create Title screen to explain rules
+#2. create objective -- fill ship with fuel!
+#OR
+#set level increase to go based on time survived
+#OR
+#idea workshop -- what is objective?
+#
+#3. add score pickups
+#
+#4. add powerups
+#
+#5. add new enemies for higher levels
+#
+#6. add multiple lives
+#
+#
+
 
 # init pygame
 pygame.init()
@@ -254,13 +275,10 @@ def playerIsNextTo(plat: platform.Platform):
 def playerIsAboveBelow(plat: platform.Platform):
     playerRight = playerX + playerWidth
     return playerX < plat.X+plat.width and playerRight > plat.X
-#    return ( plat.X + plat.width > playerX > plat.X ) or ( plat.X < playerRight < plat.X + plat.width )
-
 
 def increaseScore(amount: int):
     global gameScore
     gameScore += amount
-
 
 def drawDebugText():
     img = font.render(f"{gameTimer}",True,pygame.Color(0,0,255))
@@ -272,13 +290,26 @@ def drawScoreText():
     screen.blit(img,(screenX - screenX/6,10))
 
 #TODO:title screen and game-start
-#TODO: restart game
+#restart game method returns all global variables to initial state to start anew
 def restartGame():
+    global level,gameScore,gameTimer,gameOver,gameOverTimer,playerX,playerY,playerInAir
+    global toggleJetpackTimer,playerHealth,blasterTimer,jetpackOn
+    global enemies
+    global bullets
     level = 1
     gameScore = 0
     gameTimer = 0
     gameOver = False
     gameOverTimer=0
+    playerX = screenX*.3
+    playerY = 20
+    playerInAir = True
+    toggleJetpackTimer = 0
+    jetpackOn = False
+    playerHealth=3
+    blasterTimer=0
+    enemies.clear()    
+    bullets.clear()
 
 
 
@@ -287,7 +318,11 @@ generatePlatforms()
 running = True
 while running:
 
-
+    if gameOver:
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_r]:
+            restartGame()
+            pass
 
     #event section
     for event in pygame.event.get():
