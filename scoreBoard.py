@@ -40,7 +40,7 @@ class scoreBoard:
     def close(self):
         self.conn.close()
 
-    def getTopScores():
+    def getTopScores(self):
         """this will return the scoreboard paragraph actually"""
         """TODO: unsure yet, depends on how the graphics handles multi-line strings"""
         return self.topScores

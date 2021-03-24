@@ -96,6 +96,14 @@ sB=scoreBoard.scoreBoard()
 def drawPlayer(x,y):
     screen.blit(playerImgRight,(x,y)) if playerFacing == 1 else screen.blit(playerImgLeft,(x,y))
 
+def drawScoreBoard(x,y):
+    scores = sB.getTopScores()
+    yPos = 20
+    for sL in scores:
+        img = scoreBoardFont.render(f"{sL.name}\t\t{sL.score}\t{sL.date}",True,BLUE)
+        screen.blit(img,(x,y+yPos))
+        yPos+=20
+
 def drawGameOver(x,y):
     global gameTimer
     global gameOverTimer
