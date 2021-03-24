@@ -1,13 +1,20 @@
 
 import pygame
-import platform
+import game_platform
 import enemiesClass
 import blasterBullet
 from random import seed
+import scoreBoard
+
 
 #TODO LIST:
 #
-#1. create Title screen to explain rules
+# 0. online score screen using mySQL database :D 
+# 0.a Reading from database! DONE
+# 0.b Displaying topscores on death screen
+# 0.c Writing new topscore to database
+# 0.d database functions to not overflow table with low scores(only keep top scores!)
+#1. create Title screen to explain rules, show hiscores, etc
 #2. create objective -- fill ship with fuel!
 #OR
 #set level increase to go based on time survived
@@ -81,7 +88,7 @@ gameTimer = 0
 gameScore = 0
 level = 1
 seed(1)#set random seed
-
+sB=scoreBoard.scoreBoard()
 
 
 
@@ -164,7 +171,7 @@ def playerHurt():
     else:
         gameOver = True
         gameOverTimer = gameTimer
-        print("set gameover")
+        #print("set gameover")
 
 
 
@@ -172,9 +179,9 @@ platformImg = pygame.image.load('platform.png')
 platforms = []
 def generatePlatforms():
     platforms.clear()
-    platforms.append(platform.Platform(-40,screenY-30,screenX + 80))
-    platforms.append(platform.Platform(160,300,160))
-    platforms.append(platform.Platform(560,200,160))
+    platforms.append(game_platform.game_Platform(-40,screenY-30,screenX + 80))
+    platforms.append(game_platform.game_Platform(160,300,160))
+    platforms.append(game_platform.game_Platform(560,200,160))
 
 
 #Platform graphics logic
@@ -195,7 +202,7 @@ def drawEnemies():
     for e in enemies:
         screen.blit(e.image,(e.X,e.Y))
 
-def enemyCollidePlatform(enemy:enemiesClass.Enemy,plat:platform.Platform) -> bool:
+def enemyCollidePlatform(enemy:enemiesClass.Enemy,plat:game_platform.game_Platform) -> bool:
     #only check collision with top of platforms
     if enemy.X < plat.X+plat.width and enemy.X+enemy.width > plat.X: #enemy above platform
         if enemy.Y+enemy.height > plat.Y and enemy.Y < plat.Y:
@@ -269,10 +276,10 @@ def playerHitsWallGoingRight():
             if playerRight + playerDX > plat.X and playerRight < plat.X + plat.width:
                 playerDX = 0
 
-def playerIsNextTo(plat: platform.Platform):
+def playerIsNextTo(plat: game_platform.game_Platform):
     return playerY < plat.Y + plat.height and playerY + playerHeight > plat.Y 
 
-def playerIsAboveBelow(plat: platform.Platform):
+def playerIsAboveBelow(plat: game_platform.game_Platform):
     playerRight = playerX + playerWidth
     return playerX < plat.X+plat.width and playerRight > plat.X
 
