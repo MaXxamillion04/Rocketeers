@@ -11,9 +11,9 @@ import scoreBoard
 #
 # 0. online score screen using mySQL database :D 
 # 0.a Reading from database! DONE
-# 0.b Displaying topscores on death screen
-# 0.c Writing new topscore to database
-# 0.d database functions to not overflow table with low scores(only keep top scores!)
+# 0.b Displaying topscores on death screen DONE but it looks awful
+# 0.c Writing new topscore to database DONE
+# 0.d database functions to not overflow table with low scores(only keep truly top scores!)
 #1. create Title screen to explain rules, show hiscores, etc
 #2. create objective -- fill ship with fuel!
 #OR
@@ -29,7 +29,7 @@ import scoreBoard
 #
 #6. add multiple lives
 #
-#
+# 7. make database accessible from internet, and located somewhere accessible as well
 
 
 # init pygame
@@ -53,6 +53,9 @@ gameOverFont = pygame.font.SysFont("Uroob",64,True)
 RED = pygame.Color(255,0,0)
 GREEN = pygame.Color(0,255,0)
 BLUE = pygame.Color(0,0,255)
+WHITE = pygame.Color(200,200,200)
+scoreBoardFont = pygame.font.Font("./joystixmonospace.ttf",20)
+    #"Noto Mono",36,True)
 
 #Player info
 playerImgRight = pygame.image.load('newplayer.png')
@@ -97,10 +100,15 @@ def drawPlayer(x,y):
     screen.blit(playerImgRight,(x,y)) if playerFacing == 1 else screen.blit(playerImgLeft,(x,y))
 
 def drawScoreBoard(x,y):
+    pygame.draw.rect(screen,WHITE,(x,y,300,400))
     scores = sB.getTopScores()
     yPos = 20
     for sL in scores:
-        img = scoreBoardFont.render(f"{sL.name}\t\t{sL.score}\t{sL.date}",True,BLUE)
+        drawName = sL.name+" "*(12-len(sL.name))
+        drawScore = str(sL.score)
+        drawScore =" "*(11-len(drawScore))+drawScore
+
+        img = scoreBoardFont.render(f"{drawName}||{drawScore}",True,BLUE)
         screen.blit(img,(x,y+yPos))
         yPos+=20
 
@@ -179,6 +187,11 @@ def playerHurt():
     else:
         gameOver = True
         gameOverTimer = gameTimer
+        #PLAYER DIES
+        #PLAYER DEATH
+        #TODO: MOVE PLAYER DEATH TO ITS OWN SUBROUTINE
+        sB.addTopScore("MaXx_2",gameScore)
+        
         #print("set gameover")
 
 
@@ -389,7 +402,7 @@ while running:
     #move bullet section
     for bul in bullets:
         bul.x += bul.dir*1.8
-        if bul.x > screenX:
+        if bul.x > screenX+10:
             bul.x = -10
         if bul.x <-10:
             bul.x = screenX+10
@@ -442,7 +455,7 @@ while running:
         if len(enemies) < 7 + level:
             generateEnemy()
 
-    #TODO: player death & animation
+
 
     
 
@@ -475,27 +488,25 @@ while running:
     # background color
     screen.fill((0,0,0))
 
-
+    drawEnemies()
     #draw actors
     if not gameOver:
         drawPlayer(playerX,playerY)
+        drawPlayerHealth()
+        drawJetpackIndicator()
+        drawPlatforms()
+        drawScoreText()
+        drawDebugText()
+        drawBlasterBullets()
+    
     else:
         drawGameOver(playerX,playerY)
+        drawScoreBoard(200,300)
 
-    drawBlasterBullets()
-
-    drawEnemies()
-    #draw text and UI
-    drawDebugText()
-
-    drawScoreText()
-
-    drawPlayerHealth()
-
-    drawJetpackIndicator()
     
-    drawPlatforms()
 
+    
+    #draw text and UI
 
     pygame.display.update()
 
