@@ -3,19 +3,26 @@ import pygame
 import game_platform
 import enemiesClass
 import blasterBullet
-from random import seed
+from random import seed,randint
 import scoreBoard
+import powerUpClass
 
 
 #TODO LIST:
+#
+# 03/26/21
+# complete powerups
+# 
+#
 #
 # 0. online score screen using mySQL database :D 
 # 0.a Reading from database! DONE
 # 0.b Displaying topscores on death screen DONE but it looks awful
 # 0.c Writing new topscore to database DONE
 # 0.d database functions to not overflow table with low scores(only keep truly top scores!)
+# 0.e Database accessible from non-localhost
 #1. create Title screen to explain rules, show hiscores, etc
-#2. create objective -- fill ship with fuel!
+#2. create objective -- fill ship with babies!
 #OR
 #set level increase to go based on time survived
 #OR
@@ -93,6 +100,36 @@ level = 1
 seed(1)#set random seed
 sB=scoreBoard.scoreBoard()
 
+#game actors info
+platformImg = pygame.image.load('platform.png')
+platforms = []
+enemies = []
+bullets = []
+powerUps = []
+powerUpSize = 30
+powerUpType0_0 = pygame.image.load('powerUp0_0.png')
+powerUpType0_1 = pygame.image.load('powerUp0_1.png')
+powerUpType1_0 = pygame.image.load('powerUp1_0.png')
+powerUpType1_1 = pygame.image.load('powerUp1_1.png')
+powerUpType2_0 = pygame.image.load('powerUp2_0.png')
+powerUpType2_1 = pygame.image.load('powerUp2_1.png')
+powerUpType3_0 = None#pygame.image.load('powerUp3_0.png')
+powerUpType3_1 = None#pygame.image.load('powerUp3_1.png')
+powerUpType4_0 = None#pygame.image.load('powerUp4_0.png')
+powerUpType4_1 = None#pygame.image.load('powerUp4_1.png')
+#dictionary selects object by type(0-4) + 5 if animation is in frame 1 or 2(0 or 1)
+powerUpImages = {
+    0: powerUpType0_0,
+    1: powerUpType1_0,
+    2: powerUpType2_0,
+    3: powerUpType3_0,
+    4: powerUpType4_0,
+    5: powerUpType0_1,
+    6: powerUpType1_1,
+    7: powerUpType2_1,
+    8: powerUpType3_1,
+    9: powerUpType4_1
+}
 
 
 #player graphics logic
@@ -138,12 +175,10 @@ def drawGameOver(x,y):
         scoreVal = font.render(f"{gameScore}",True,GREEN)
         screen.blit(scoreVal,(screenX*.4,screenY*.3+30))
         resetImg = font.render("Press 'r' to play again",True,RED)
-        screen.blit(resetImg,(screenX*.4,screenY*.75))
+        screen.blit(resetImg,(screenX*.4,screenY*.35+30))
         #draw game over text
         #GAME OVER
         #Final Score:
-        #TODO: hi-score board
-        #press r to restart
         #TODO: resetGame()
 
 #TODO: draw player health bar
@@ -196,8 +231,7 @@ def playerHurt():
 
 
 
-platformImg = pygame.image.load('platform.png')
-platforms = []
+
 def generatePlatforms():
     platforms.clear()
     platforms.append(game_platform.game_Platform(-40,screenY-30,screenX + 80))
@@ -214,7 +248,7 @@ def drawPlatforms():
             screen.blit(platformImg,(platX,plat.Y))
             platX += 20
 
-enemies = []
+
 def generateEnemy():
     enemies.append(enemiesClass.Enemy(level,screenX,screenY))
 
@@ -249,7 +283,6 @@ def enemyCollideBullet(enemy:enemiesClass.Enemy, bullet:blasterBullet.blasterBul
     return enemy.X < bullet.x < enemy.X+enemy.width and enemy.Y < bullet.y < enemy.Y+enemy.height
 
     
-bullets = []
 def drawBlasterBullets():
     secondColor = bulletColor + pygame.Color(0,122,88,0)
     thirdColor = secondColor + pygame.Color(155,0,155,0)
@@ -324,6 +357,7 @@ def restartGame():
     global toggleJetpackTimer,playerHealth,blasterTimer,jetpackOn
     global enemies
     global bullets
+    global powerUps
     level = 1
     gameScore = 0
     gameTimer = 0
@@ -338,19 +372,70 @@ def restartGame():
     blasterTimer=0
     enemies.clear()    
     bullets.clear()
+    powerUps.clear()
+
+#powerups appear on the ground, so they dont have to move
+def generatePowerUp():
+    randPlat = randint(0,len(platforms)-1)
+    randX = randint(platforms[randPlat].X,platforms[randPlat].X+platforms[randPlat].width)
+    Y = platforms[randPlat].Y - powerUpSize
+    powerUps.append(powerUpClass.PowerUp(randX,Y))
 
 
+def drawPowerUps():
+    for pU in powerUps:
+        key = pU.type + pU.updateAnimateFrame()*5
+        #print(f"key is {key}")
+        screen.blit(powerUpImages[key],(pU.X,pU.Y))
+
+#return enemy.X < bullet.x < enemy.X+enemy.width and enemy.Y < bullet.y < enemy.Y+enemy.height
+
+def checkPowerUpCollect():
+    global playerHealth
+    global gameScore
+    removePU=[]
+    for pU in powerUps:
+        if (pU.X < playerX+playerWidth/2 <pU.X+powerUpSize and pU.Y<playerY+ playerHeight < pU.Y+powerUpSize):
+            removePU.append(pU)
+            if pU.type==0:
+                #health powerup
+                if playerHealth < 3:
+                    playerHealth+=1
+                gameScore +=500
+            elif pU.type ==1:
+                gameScore+=1200
+            elif pU.type == 2:
+                gameScore+=2000
+            elif pU.type == 3:
+                gameScore+=1000
+                #some effect
+            elif pU.type == 4:
+                gameScore+=500
+                #TODO:some drastic effect, like enemies not moving for a while or something
+    
+    for pU in removePU:
+        powerUps.remove(pU)
+                
+
+
+
+
+
+
+
+
+#Game Loop
+""" this is the game loop, where """
+running = True
 
 generatePlatforms()
-#Game Loop
-running = True
 while running:
 
     if gameOver:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_r]:
             restartGame()
-            pass
+            
 
     #event section
     for event in pygame.event.get():
@@ -396,7 +481,7 @@ while running:
             playerOnGround()# checks collision with ground
         
         playerHitsWallGoingRight() if playerDX>0 else playerHitsWallGoingLeft()
-
+        
 
     deadBullets = []
     #move bullet section
@@ -457,17 +542,16 @@ while running:
 
 
 
-    
-
-
-
-
-
-
     #cleanup bullet section
     for bul in deadBullets:
         if bul in bullets:
             bullets.remove(bul)
+
+    #powerup section
+    if gameTimer % 3000 == 0 and len(powerUps)<5:
+        generatePowerUp()
+    checkPowerUpCollect()
+    
 
     #TODO: update playerX, playerY to be modified by accelerators rather than velocity modifiers
     if not gameOver:
@@ -498,6 +582,7 @@ while running:
         drawScoreText()
         drawDebugText()
         drawBlasterBullets()
+        drawPowerUps()
     
     else:
         drawGameOver(playerX,playerY)
